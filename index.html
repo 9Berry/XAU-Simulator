@@ -2,29 +2,48 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XAU/USD Simulator - Classic Auto-Save</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         :root { --bg: #0b0e11; --panel: #161b22; --border: #30363d; --buy: #26a69a; --sell: #ef5350; --gold: #e3b341; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
+        /* Header Section */
         .header-section { display: flex; justify-content: space-between; align-items: center; background: var(--panel); padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
-        .financials { display: flex; gap: 20px; font-weight: bold; font-size: 0.9rem; }
+        .financials { display: flex; gap: 20px; font-weight: bold; font-size: 0.9rem; flex-wrap: wrap; }
         .financials span { color: var(--gold); }
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         
-        .btn { background: #30363d; color: #f0f0f0; border: 1px solid var(--border); padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: 0.2s; }
+        .btn { background: #30363d; color: #f0f0f0; border: 1px solid var(--border); padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: 0.2s; white-space: nowrap; }
         .btn:hover { background: #444; }
         .btn.active { background: var(--gold); color: black; border-color: var(--gold); font-weight: bold; }
         
-        .tf-selector { display: flex; gap: 5px; margin-bottom: 8px; }
+        /* Timeframe Selector */
+        .tf-selector { display: flex; gap: 5px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+        .tf-selector::-webkit-scrollbar { height: 4px; }
+        .tf-selector::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
         #chart-wrapper { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; position: relative; }
+        
         .trading-panel { position: absolute; top: 10px; left: 10px; z-index: 10; display: flex; gap: 2px; background: rgba(0,0,0,0.8); padding: 5px; border-radius: 4px; border: 1px solid var(--border); }
         .trade-btn { padding: 5px 12px; border: none; cursor: pointer; color: white; font-weight: bold; display: flex; flex-direction: column; align-items: center; min-width: 75px; }
         
-        #toolbox { height: 180px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; overflow-y: auto; font-size: 0.8rem; }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
+        /* Toolbox / Table */
+        #toolbox { height: 180px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; overflow-y: auto; overflow-x: auto; font-size: 0.8rem; }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; } /* min-width เพื่อให้เลื่อนดูในมือถือได้ */
         th { background: #0d1117; color: #8b949e; padding: 10px; position: sticky; top: 0; z-index: 5; }
         td { padding: 10px; border-bottom: 1px solid #21262d; }
+
+        /* Mobile Responsive adjustments */
+        @media (max-width: 768px) {
+            .header-section { flex-direction: column; gap: 10px; align-items: flex-start; padding: 10px; }
+            .financials { gap: 10px 15px; }
+            .header-actions { width: 100%; justify-content: flex-start; gap: 5px; }
+            .btn { padding: 6px 10px; font-size: 0.7rem; }
+            .trade-btn { min-width: 65px; padding: 8px 5px; }
+            #toolbox { height: 150px; }
+        }
     </style>
 </head>
 <body>
@@ -36,13 +55,14 @@
             <div>Equity: <span id="equity">10000.00</span></div>
             <div>P/L: <span id="total-pnl">0.00</span></div>
         </div>
-        <div style="display:flex; gap:10px; align-items:center;">
+        <div class="header-actions">
+            <button class="btn" onclick="setInitialBalance()" style="color:var(--gold); border-color:var(--gold);">SET BAL</button>
             <select id="tz-select" class="btn" onchange="updateTimezone()" style="background:black; color:white;">
                 <option value="local">Local Time</option>
                 <option value="Asia/Bangkok">Bangkok</option>
                 <option value="America/New_York">New York</option>
             </select>
-            <button id="sr-toggle" class="btn" onclick="toggleSR()">Auto S/R: OFF</button>
+            <button id="sr-toggle" class="btn" onclick="toggleSR()">S/R: OFF</button>
             <button class="btn" onclick="resetAccount()" style="color:var(--sell)">RESET</button>
         </div>
     </div>
@@ -73,13 +93,10 @@
     </div>
 
 <script>
-    // --- ระบบดึงข้อมูลที่บันทึกไว้ ---
     let balance = parseFloat(localStorage.getItem('saved_balance')) || 10000.0;
     let wins = parseInt(localStorage.getItem('saved_wins')) || 0;
     let totalClosed = parseInt(localStorage.getItem('saved_total')) || 0;
-
-    let positions = [], curPrice = 0, socket, showSR = false, historyData = [];
-    let srLines = [];
+    let positions = [], curPrice = 0, socket, showSR = false, historyData = [], srLines = [];
 
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
         layout: { background: { color: '#161b22' }, textColor: '#d1d4dc' },
@@ -92,6 +109,16 @@
         }
     });
     const series = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350' });
+
+    function setInitialBalance() {
+        const amount = prompt("ระบุจำนวนเงินเริ่มต้นที่ต้องการ (USD):", balance);
+        if (amount !== null && !isNaN(amount) && parseFloat(amount) >= 0) {
+            balance = parseFloat(amount);
+            localStorage.setItem('saved_balance', balance);
+            updateFinancialUI();
+            calcPNL();
+        }
+    }
 
     async function load(tf) {
         if(socket) socket.close();
@@ -114,6 +141,7 @@
     }
 
     function openTrade(type) {
+        if (balance <= 0) { alert("เงินไม่พอเปิดออเดอร์!"); return; }
         const p = { id: Date.now(), type, lots: +document.getElementById('lots').value, entry: curPrice, pnl: 0 };
         p.line = series.createPriceLine({ price: curPrice, color: type==='BUY'?'#26a69a':'#ef5350', title: type });
         positions.push(p);
@@ -122,17 +150,14 @@
 
     function closeTrade(id) {
         const i = positions.findIndex(p => p.id === id);
+        if (i === -1) return;
         const p = positions[i];
-        
         totalClosed++;
         if(p.pnl > 0) wins++;
         balance += p.pnl;
-
-        // บันทึกลง Browser
         localStorage.setItem('saved_balance', balance);
         localStorage.setItem('saved_wins', wins);
         localStorage.setItem('saved_total', totalClosed);
-
         series.removePriceLine(p.line);
         positions.splice(i, 1);
         updateFinancialUI();
@@ -145,8 +170,20 @@
             p.pnl = (p.type === 'BUY' ? curPrice - p.entry : p.entry - curPrice) * p.lots * 100;
             total += p.pnl;
         });
+
+        const equity = balance + total;
         document.getElementById('total-pnl').innerText = total.toFixed(2);
-        document.getElementById('equity').innerText = (balance + total).toFixed(2);
+        document.getElementById('equity').innerText = equity.toFixed(2);
+
+        if (equity <= 0 && balance > 0) {
+            alert("⚠️ พอร์ตแตก! (Equity <= 0)");
+            positions.forEach(p => series.removePriceLine(p.line));
+            positions = [];
+            balance = 0;
+            localStorage.setItem('saved_balance', 0);
+            updateFinancialUI();
+            render();
+        }
         updateFinancialUI();
         render();
     }
@@ -160,7 +197,7 @@
     function render() {
         document.getElementById('pos-table').innerHTML = positions.map(p => `
             <tr>
-                <td style="color:${p.type==='BUY'?'#26a69a':'#ef5350'}">${p.type}</td>
+                <td style="color:${p.type==='BUY'?'#26a69a':'#ef5350'}"><b>${p.type}</b></td>
                 <td>${p.lots.toFixed(2)}</td><td>${p.entry.toFixed(2)}</td><td>${curPrice.toFixed(2)}</td>
                 <td style="color:${p.pnl>=0?'#26a69a':'#ef5350'}">${p.pnl.toFixed(2)}</td>
                 <td><button onclick="closeTrade(${p.id})" class="btn" style="padding:2px 8px;">Close</button></td>
@@ -176,7 +213,7 @@
     function toggleSR() {
         showSR = !showSR;
         const btn = document.getElementById('sr-toggle');
-        btn.innerText = `Auto S/R: ${showSR ? 'ON' : 'OFF'}`;
+        btn.innerText = `S/R: ${showSR ? 'ON' : 'OFF'}`;
         btn.classList.toggle('active');
         if(!showSR) { srLines.forEach(l => series.removePriceLine(l)); srLines = []; } 
         else calculateSR();
