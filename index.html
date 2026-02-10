@@ -3,46 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XAU/USD Simulator - Classic Auto-Save</title>
+    <title>XAU/USD Simulator - Pro Mobile</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        :root { --bg: #0b0e11; --panel: #161b22; --border: #30363d; --buy: #26a69a; --sell: #ef5350; --gold: #e3b341; }
+        :root { --bg: #0b0e11; --panel: #161b22; --border: #30363d; --buy: #26a69a; --sell: #ef5350; --gold: #e3b341; --info: #2196f3; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* Header Section */
+        /* Header & Financials */
         .header-section { display: flex; justify-content: space-between; align-items: center; background: var(--panel); padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
-        .financials { display: flex; gap: 20px; font-weight: bold; font-size: 0.9rem; flex-wrap: wrap; }
+        .financials { display: flex; gap: 15px; font-weight: bold; font-size: 0.85rem; flex-wrap: wrap; }
         .financials span { color: var(--gold); }
-        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .margin-info { color: #8b949e; font-size: 0.75rem; border-left: 1px solid var(--border); padding-left: 15px; }
+
+        .btn { background: #30363d; color: #f0f0f0; border: 1px solid var(--border); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; white-space: nowrap; }
+        .btn.active { background: var(--gold); color: black; font-weight: bold; }
         
-        .btn { background: #30363d; color: #f0f0f0; border: 1px solid var(--border); padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: 0.2s; white-space: nowrap; }
-        .btn:hover { background: #444; }
-        .btn.active { background: var(--gold); color: black; border-color: var(--gold); font-weight: bold; }
-        
-        /* Timeframe Selector */
+        /* TF Selector with Horizontal Scroll for Mobile */
         .tf-selector { display: flex; gap: 5px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
-        .tf-selector::-webkit-scrollbar { height: 4px; }
-        .tf-selector::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        .tf-selector::-webkit-scrollbar { height: 3px; }
+        .tf-selector::-webkit-scrollbar-thumb { background: var(--border); }
 
         #chart-wrapper { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; position: relative; }
         
         .trading-panel { position: absolute; top: 10px; left: 10px; z-index: 10; display: flex; gap: 2px; background: rgba(0,0,0,0.8); padding: 5px; border-radius: 4px; border: 1px solid var(--border); }
-        .trade-btn { padding: 5px 12px; border: none; cursor: pointer; color: white; font-weight: bold; display: flex; flex-direction: column; align-items: center; min-width: 75px; }
+        .trade-btn { padding: 5px 12px; border: none; cursor: pointer; color: white; font-weight: bold; min-width: 70px; }
         
-        /* Toolbox / Table */
-        #toolbox { height: 180px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; overflow-y: auto; overflow-x: auto; font-size: 0.8rem; }
-        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; } /* min-width เพื่อให้เลื่อนดูในมือถือได้ */
-        th { background: #0d1117; color: #8b949e; padding: 10px; position: sticky; top: 0; z-index: 5; }
-        td { padding: 10px; border-bottom: 1px solid #21262d; }
+        /* Responsive Table Container */
+        .tables-container { display: flex; flex-direction: column; gap: 8px; height: 200px; margin-top: 8px; }
+        .table-box { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; overflow-x: auto; font-size: 0.75rem; }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; }
+        th { background: #0d1117; color: #8b949e; padding: 8px; position: sticky; top: 0; z-index: 5; }
+        td { padding: 8px; border-bottom: 1px solid #21262d; }
+        .tab-title { padding: 5px 10px; font-size: 0.7rem; font-weight: bold; color: var(--gold); background: #0d1117; border-bottom: 1px solid var(--border); }
 
-        /* Mobile Responsive adjustments */
+        /* Mobile View Adjustments */
         @media (max-width: 768px) {
-            .header-section { flex-direction: column; gap: 10px; align-items: flex-start; padding: 10px; }
-            .financials { gap: 10px 15px; }
-            .header-actions { width: 100%; justify-content: flex-start; gap: 5px; }
-            .btn { padding: 6px 10px; font-size: 0.7rem; }
-            .trade-btn { min-width: 65px; padding: 8px 5px; }
-            #toolbox { height: 150px; }
+            .header-section { flex-direction: column; gap: 10px; padding: 10px; align-items: flex-start; }
+            .margin-info { border-left: none; padding-left: 0; width: 100%; }
+            .tables-container { height: 250px; }
+            .trade-btn { min-width: 60px; font-size: 0.65rem; }
         }
     </style>
 </head>
@@ -50,19 +49,22 @@
 
     <div class="header-section">
         <div class="financials">
-            <div>Balance: <span id="balance">10000.00</span></div>
-            <div>Win Rate: <span id="win-rate">0%</span></div>
-            <div>Equity: <span id="equity">10000.00</span></div>
+            <div>Bal: <span id="balance">0.00</span></div>
+            <div>Eq: <span id="equity">0.00</span></div>
             <div>P/L: <span id="total-pnl">0.00</span></div>
+            <div class="margin-info">
+                Margin: <span id="used-margin">0.00</span> | Level: <span id="margin-level">0%</span>
+            </div>
         </div>
-        <div class="header-actions">
-            <button class="btn" onclick="setInitialBalance()" style="color:var(--gold); border-color:var(--gold);">SET BAL</button>
-            <select id="tz-select" class="btn" onchange="updateTimezone()" style="background:black; color:white;">
-                <option value="local">Local Time</option>
-                <option value="Asia/Bangkok">Bangkok</option>
-                <option value="America/New_York">New York</option>
+        <div style="display:flex; gap:5px; flex-wrap: wrap;">
+            <select id="lev-select" class="btn" style="background:black;" onchange="calcPNL()">
+                <option value="100">1:100</option>
+                <option value="500">1:500</option>
+                <option value="1000">1:1000</option>
+                <option value="1500">1:1500</option>
+                <option value="2000" selected>1:2000</option>
             </select>
-            <button id="sr-toggle" class="btn" onclick="toggleSR()">S/R: OFF</button>
+            <button class="btn" onclick="setInitialBalance()" style="color:var(--gold)">SET BAL</button>
             <button class="btn" onclick="resetAccount()" style="color:var(--sell)">RESET</button>
         </div>
     </div>
@@ -70,66 +72,119 @@
     <div class="tf-selector">
         <button class="btn active" onclick="changeTF('1m', this)">1m</button>
         <button class="btn" onclick="changeTF('15m', this)">15m</button>
-        <button class="btn" onclick="changeTF('30m', this)">30m</button>
         <button class="btn" onclick="changeTF('1h', this)">1h</button>
         <button class="btn" onclick="changeTF('4h', this)">4h</button>
         <button class="btn" onclick="changeTF('1d', this)">D1</button>
+        <button class="btn" onclick="changeTF('1w', this)">W1</button>
+        <button class="btn" onclick="toggleEMA()" id="ema-btn">EMA: OFF</button>
     </div>
 
     <div id="chart-wrapper">
         <div class="trading-panel">
             <button class="trade-btn" style="background:var(--sell)" onclick="openTrade('SELL')">SELL <small id="s-prc">0.0</small></button>
-            <input type="number" id="lots" value="1.00" step="0.1" style="width:45px; background:black; color:white; border:1px solid var(--border); text-align:center;">
+            <input type="number" id="lots" value="1.00" step="0.1" style="width:40px; background:black; color:white; border:1px solid var(--border); text-align:center;">
             <button class="trade-btn" style="background:var(--buy)" onclick="openTrade('BUY')">BUY <small id="b-prc">0.0</small></button>
         </div>
         <div id="chart" style="width:100%; height:100%;"></div>
     </div>
 
-    <div id="toolbox">
-        <table>
-            <thead><tr><th>Type</th><th>Lots</th><th>Entry</th><th>Current</th><th>Profit</th><th>Action</th></tr></thead>
-            <tbody id="pos-table"></tbody>
-        </table>
+    <div class="tables-container">
+        <div class="table-box">
+            <div class="tab-title">ACTIVE POSITIONS</div>
+            <table>
+                <thead><tr><th>Type</th><th>Lots</th><th>Entry</th><th>Profit</th><th>Action</th></tr></thead>
+                <tbody id="pos-table"></tbody>
+            </table>
+        </div>
+        <div class="table-box">
+            <div class="tab-title">TRADE HISTORY</div>
+            <table>
+                <thead><tr><th>Type</th><th>Lots</th><th>In/Out</th><th>Profit</th><th>Time</th></tr></thead>
+                <tbody id="history-table"></tbody>
+            </table>
+        </div>
     </div>
 
 <script>
     let balance = parseFloat(localStorage.getItem('saved_balance')) || 10000.0;
-    let wins = parseInt(localStorage.getItem('saved_wins')) || 0;
-    let totalClosed = parseInt(localStorage.getItem('saved_total')) || 0;
-    let positions = [], curPrice = 0, socket, showSR = false, historyData = [], srLines = [];
+    let history = JSON.parse(localStorage.getItem('trade_history')) || [];
+    let positions = [], curPrice = 0, socket, historyData = [], emaSeries = null, showEMA = false;
 
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
         layout: { background: { color: '#161b22' }, textColor: '#d1d4dc' },
         grid: { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
-        timeScale: { timeVisible: true },
-        localization: {
-            timeFormatter: (t) => new Date(t * 1000).toLocaleString('th-TH', { 
-                timeZone: document.getElementById('tz-select').value === 'local' ? undefined : document.getElementById('tz-select').value 
-            })
-        }
+        timeScale: { timeVisible: true }
     });
     const series = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350' });
 
-    function setInitialBalance() {
-        const amount = prompt("ระบุจำนวนเงินเริ่มต้นที่ต้องการ (USD):", balance);
-        if (amount !== null && !isNaN(amount) && parseFloat(amount) >= 0) {
-            balance = parseFloat(amount);
-            localStorage.setItem('saved_balance', balance);
-            updateFinancialUI();
-            calcPNL();
+    // EMA Logic
+    function toggleEMA() {
+        showEMA = !showEMA;
+        document.getElementById('ema-btn').innerText = `EMA: ${showEMA ? 'ON' : 'OFF'}`;
+        document.getElementById('ema-btn').classList.toggle('active');
+        if (showEMA) {
+            emaSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 1 });
+            updateEMA();
+        } else if (emaSeries) {
+            chart.removeSeries(emaSeries);
+            emaSeries = null;
         }
+    }
+
+    function updateEMA() {
+        if (showEMA && emaSeries && historyData.length > 20) {
+            let k = 2 / (21);
+            let emaData = [], prevEma = historyData[0].close;
+            historyData.forEach(d => {
+                let val = (d.close - prevEma) * k + prevEma;
+                emaData.push({ time: d.time, value: val });
+                prevEma = val;
+            });
+            emaSeries.setData(emaData);
+        }
+    }
+
+    // P/L & Margin Logic
+    function calcPNL() {
+        let totalPnl = 0, usedMargin = 0;
+        let lev = parseInt(document.getElementById('lev-select').value);
+
+        positions.forEach(p => {
+            p.pnl = (p.type === 'BUY' ? curPrice - p.entry : p.entry - curPrice) * p.lots * 100;
+            totalPnl += p.pnl;
+            usedMargin += (p.entry * p.lots * 100) / lev; //
+        });
+
+        let equity = balance + totalPnl;
+        let marginLevel = usedMargin > 0 ? (equity / usedMargin) * 100 : 0;
+
+        document.getElementById('total-pnl').innerText = totalPnl.toFixed(2);
+        document.getElementById('equity').innerText = equity.toFixed(2);
+        document.getElementById('used-margin').innerText = usedMargin.toFixed(2);
+        document.getElementById('margin-level').innerText = marginLevel.toFixed(0) + "%";
+
+        // Stop Out at 50%
+        if ((marginLevel > 0 && marginLevel < 50) || equity <= 0) {
+            alert("⚠️ STOP OUT! พอร์ตแตกเนื่องจากระดับหลักประกันต่ำเกินไป");
+            positions.forEach(p => series.removePriceLine(p.line));
+            positions = []; balance = 0;
+            localStorage.setItem('saved_balance', 0);
+            updateUI();
+        }
+        updateUI();
     }
 
     async function load(tf) {
         if(socket) socket.close();
-        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${tf}&limit=200`);
+        // Binance TF mapping
+        const interval = tf === '1d' ? '1d' : tf === '1w' ? '1w' : tf;
+        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${interval}&limit=200`);
         const raw = await res.json();
         historyData = raw.map(d => ({ time: d[0]/1000, open: +d[1], high: +d[2], low: +d[3], close: +d[4] }));
         series.setData(historyData);
-        chart.timeScale().fitContent();
-        if(showSR) calculateSR();
-
-        socket = new WebSocket(`wss://stream.binance.com:9443/ws/paxgusdt@kline_${tf}`);
+        updateEMA();
+        
+        socket = new WebSocket(`wss://stream.binance.com:9443/ws/paxgusdt@kline_${interval}`);
         socket.onmessage = e => {
             const k = JSON.parse(e.data).k;
             curPrice = +k.c;
@@ -141,109 +196,51 @@
     }
 
     function openTrade(type) {
-        if (balance <= 0) { alert("เงินไม่พอเปิดออเดอร์!"); return; }
+        if (balance <= 0) { alert("ยอดเงินไม่เพียงพอ"); return; }
         const p = { id: Date.now(), type, lots: +document.getElementById('lots').value, entry: curPrice, pnl: 0 };
         p.line = series.createPriceLine({ price: curPrice, color: type==='BUY'?'#26a69a':'#ef5350', title: type });
         positions.push(p);
-        render();
+        updateUI();
     }
 
     function closeTrade(id) {
         const i = positions.findIndex(p => p.id === id);
-        if (i === -1) return;
         const p = positions[i];
-        totalClosed++;
-        if(p.pnl > 0) wins++;
         balance += p.pnl;
+        history.unshift({ type: p.type, lots: p.lots, in: p.entry, out: curPrice, pnl: p.pnl, time: new Date().toLocaleTimeString() });
+        if(history.length > 20) history.pop();
         localStorage.setItem('saved_balance', balance);
-        localStorage.setItem('saved_wins', wins);
-        localStorage.setItem('saved_total', totalClosed);
+        localStorage.setItem('trade_history', JSON.stringify(history));
         series.removePriceLine(p.line);
         positions.splice(i, 1);
-        updateFinancialUI();
-        render();
+        updateUI();
     }
 
-    function calcPNL() {
-        let total = 0;
-        positions.forEach(p => {
-            p.pnl = (p.type === 'BUY' ? curPrice - p.entry : p.entry - curPrice) * p.lots * 100;
-            total += p.pnl;
-        });
-
-        const equity = balance + total;
-        document.getElementById('total-pnl').innerText = total.toFixed(2);
-        document.getElementById('equity').innerText = equity.toFixed(2);
-
-        if (equity <= 0 && balance > 0) {
-            alert("⚠️ พอร์ตแตก! (Equity <= 0)");
-            positions.forEach(p => series.removePriceLine(p.line));
-            positions = [];
-            balance = 0;
-            localStorage.setItem('saved_balance', 0);
-            updateFinancialUI();
-            render();
-        }
-        updateFinancialUI();
-        render();
-    }
-
-    function updateFinancialUI() {
+    function updateUI() {
         document.getElementById('balance').innerText = balance.toFixed(2);
-        const wr = totalClosed > 0 ? ((wins / totalClosed) * 100).toFixed(0) : 0;
-        document.getElementById('win-rate').innerText = wr + "%";
-    }
-
-    function render() {
         document.getElementById('pos-table').innerHTML = positions.map(p => `
-            <tr>
-                <td style="color:${p.type==='BUY'?'#26a69a':'#ef5350'}"><b>${p.type}</b></td>
-                <td>${p.lots.toFixed(2)}</td><td>${p.entry.toFixed(2)}</td><td>${curPrice.toFixed(2)}</td>
-                <td style="color:${p.pnl>=0?'#26a69a':'#ef5350'}">${p.pnl.toFixed(2)}</td>
-                <td><button onclick="closeTrade(${p.id})" class="btn" style="padding:2px 8px;">Close</button></td>
-            </tr>`).join('');
+            <tr><td><b style="color:${p.type==='BUY'?'#26a69a':'#ef5350'}">${p.type}</b></td>
+            <td>${p.lots.toFixed(2)}</td><td>${p.entry.toFixed(2)}</td>
+            <td style="color:${p.pnl>=0?'#26a69a':'#ef5350'}">${p.pnl.toFixed(2)}</td>
+            <td><button onclick="closeTrade(${p.id})" class="btn">Close</button></td></tr>`).join('');
+            
+        document.getElementById('history-table').innerHTML = history.map(h => `
+            <tr><td>${h.type}</td><td>${h.lots}</td><td>${h.in}→${h.out.toFixed(2)}</td>
+            <td style="color:${h.pnl>=0?'#26a69a':'#ef5350'}">${h.pnl.toFixed(2)}</td><td>${h.time}</td></tr>`).join('');
     }
 
-    function updateTimezone() {
-        chart.applyOptions({ localization: { timeFormatter: (t) => new Date(t * 1000).toLocaleString('th-TH', { 
-            timeZone: document.getElementById('tz-select').value === 'local' ? undefined : document.getElementById('tz-select').value 
-        })}});
-    }
-
-    function toggleSR() {
-        showSR = !showSR;
-        const btn = document.getElementById('sr-toggle');
-        btn.innerText = `S/R: ${showSR ? 'ON' : 'OFF'}`;
-        btn.classList.toggle('active');
-        if(!showSR) { srLines.forEach(l => series.removePriceLine(l)); srLines = []; } 
-        else calculateSR();
-    }
-
-    function calculateSR() {
-        srLines.forEach(l => series.removePriceLine(l));
-        srLines = [];
-        const prices = historyData.slice(-100);
-        const highs = prices.map(p => p.high), lows = prices.map(p => p.low);
-        const levels = [Math.max(...highs), Math.min(...lows), (Math.max(...highs) + Math.min(...lows)) / 2];
-        levels.forEach((lvl, i) => {
-            srLines.push(series.createPriceLine({ price: lvl, color: i === 0 ? '#ef5350' : i === 1 ? '#26a69a' : '#8b949e', lineWidth: 1, lineStyle: 2, title: i === 0 ? 'R' : i === 1 ? 'S' : 'M' }));
-        });
+    function setInitialBalance() {
+        const amt = prompt("ระบุยอดเงินเริ่มต้น:", balance);
+        if(amt) { balance = parseFloat(amt); localStorage.setItem('saved_balance', balance); updateUI(); }
     }
 
     function changeTF(tf, btn) {
         document.querySelectorAll('.tf-selector .btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        load(tf);
+        btn.classList.add('active'); load(tf);
     }
 
-    function resetAccount() {
-        if(confirm("ล้างข้อมูลสถิติและเงินทุนทั้งหมดใช่หรือไม่?")) {
-            localStorage.clear();
-            location.reload();
-        }
-    }
+    function resetAccount() { if(confirm("ล้างข้อมูลทั้งหมด?")) { localStorage.clear(); location.reload(); } }
 
-    updateFinancialUI();
     load('1m');
     window.addEventListener('resize', () => chart.applyOptions({ width: document.getElementById('chart').clientWidth }));
 </script>
