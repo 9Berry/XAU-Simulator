@@ -8,35 +8,24 @@
     <style>
         :root { --bg: #0b0e11; --panel: #161b22; --border: #30363d; --buy: #26a69a; --sell: #ef5350; --gold: #e3b341; --info: #2196f3; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* Header & Financials */
         .header-section { display: flex; justify-content: space-between; align-items: center; background: var(--panel); padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
         .financials { display: flex; gap: 15px; font-weight: bold; font-size: 0.85rem; flex-wrap: wrap; }
         .financials span { color: var(--gold); }
         .margin-info { color: #8b949e; font-size: 0.75rem; border-left: 1px solid var(--border); padding-left: 15px; }
-
         .btn { background: #30363d; color: #f0f0f0; border: 1px solid var(--border); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; white-space: nowrap; }
         .btn.active { background: var(--gold); color: black; font-weight: bold; }
-        
-        /* TF Selector with Horizontal Scroll for Mobile */
         .tf-selector { display: flex; gap: 5px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
         .tf-selector::-webkit-scrollbar { height: 3px; }
         .tf-selector::-webkit-scrollbar-thumb { background: var(--border); }
-
         #chart-wrapper { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; position: relative; }
-        
         .trading-panel { position: absolute; top: 10px; left: 10px; z-index: 10; display: flex; gap: 2px; background: rgba(0,0,0,0.8); padding: 5px; border-radius: 4px; border: 1px solid var(--border); }
         .trade-btn { padding: 5px 12px; border: none; cursor: pointer; color: white; font-weight: bold; min-width: 70px; }
-        
-        /* Responsive Table Container */
         .tables-container { display: flex; flex-direction: column; gap: 8px; height: 200px; margin-top: 8px; }
         .table-box { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; overflow-x: auto; font-size: 0.75rem; }
         table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; }
         th { background: #0d1117; color: #8b949e; padding: 8px; position: sticky; top: 0; z-index: 5; }
         td { padding: 8px; border-bottom: 1px solid #21262d; }
         .tab-title { padding: 5px 10px; font-size: 0.7rem; font-weight: bold; color: var(--gold); background: #0d1117; border-bottom: 1px solid var(--border); }
-
-        /* Mobile View Adjustments */
         @media (max-width: 768px) {
             .header-section { flex-direction: column; gap: 10px; padding: 10px; align-items: flex-start; }
             .margin-info { border-left: none; padding-left: 0; width: 100%; }
@@ -58,6 +47,8 @@
         </div>
         <div style="display:flex; gap:5px; flex-wrap: wrap;">
             <select id="lev-select" class="btn" style="background:black;" onchange="calcPNL()">
+                <option value="1">1:1</option>
+                <option value="50">1:50</option>
                 <option value="100">1:100</option>
                 <option value="500">1:500</option>
                 <option value="1000">1:1000</option>
@@ -117,7 +108,6 @@
     });
     const series = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350' });
 
-    // EMA Logic
     function toggleEMA() {
         showEMA = !showEMA;
         document.getElementById('ema-btn').innerText = `EMA: ${showEMA ? 'ON' : 'OFF'}`;
@@ -144,7 +134,7 @@
         }
     }
 
-    // P/L & Margin Logic
+    // แก้ไขระบบ P/L & Stop Out ให้ทำการ Reset อัตโนมัติ
     function calcPNL() {
         let totalPnl = 0, usedMargin = 0;
         let lev = parseInt(document.getElementById('lev-select').value);
@@ -152,7 +142,7 @@
         positions.forEach(p => {
             p.pnl = (p.type === 'BUY' ? curPrice - p.entry : p.entry - curPrice) * p.lots * 100;
             totalPnl += p.pnl;
-            usedMargin += (p.entry * p.lots * 100) / lev; //
+            usedMargin += (p.entry * p.lots * 100) / lev;
         });
 
         let equity = balance + totalPnl;
@@ -163,20 +153,19 @@
         document.getElementById('used-margin').innerText = usedMargin.toFixed(2);
         document.getElementById('margin-level').innerText = marginLevel.toFixed(0) + "%";
 
-        // Stop Out at 50%
-        if ((marginLevel > 0 && marginLevel < 50) || equity <= 0) {
-            alert("⚠️ STOP OUT! พอร์ตแตกเนื่องจากระดับหลักประกันต่ำเกินไป");
-            positions.forEach(p => series.removePriceLine(p.line));
-            positions = []; balance = 0;
-            localStorage.setItem('saved_balance', 0);
-            updateUI();
+        // เงื่อนไขล้างพอร์ต: Margin Level ต่ำกว่า 50% หรือ Equity ติดลบ
+        if ((marginLevel > 0 && marginLevel < 50) || (equity <= 0 && positions.length > 0)) {
+            if(socket) socket.close(); // หยุดรับข้อมูลทันทีเพื่อกัน Alert เด้งซ้ำ
+            alert("⚠️ STOP OUT! พอร์ตแตกเนื่องจากระดับหลักประกันต่ำเกินไป\nระบบจะทำการรีเซ็ตบัญชีของคุณใหม่");
+            localStorage.clear(); // ล้างข้อมูลทั้งหมด
+            location.reload(); // โหลดหน้าใหม่เพื่อเริ่มต้นใหม่
+            return;
         }
         updateUI();
     }
 
     async function load(tf) {
         if(socket) socket.close();
-        // Binance TF mapping
         const interval = tf === '1d' ? '1d' : tf === '1w' ? '1w' : tf;
         const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${interval}&limit=200`);
         const raw = await res.json();
@@ -205,6 +194,7 @@
 
     function closeTrade(id) {
         const i = positions.findIndex(p => p.id === id);
+        if (i === -1) return;
         const p = positions[i];
         balance += p.pnl;
         history.unshift({ type: p.type, lots: p.lots, in: p.entry, out: curPrice, pnl: p.pnl, time: new Date().toLocaleTimeString() });
@@ -223,7 +213,6 @@
             <td>${p.lots.toFixed(2)}</td><td>${p.entry.toFixed(2)}</td>
             <td style="color:${p.pnl>=0?'#26a69a':'#ef5350'}">${p.pnl.toFixed(2)}</td>
             <td><button onclick="closeTrade(${p.id})" class="btn">Close</button></td></tr>`).join('');
-            
         document.getElementById('history-table').innerHTML = history.map(h => `
             <tr><td>${h.type}</td><td>${h.lots}</td><td>${h.in}→${h.out.toFixed(2)}</td>
             <td style="color:${h.pnl>=0?'#26a69a':'#ef5350'}">${h.pnl.toFixed(2)}</td><td>${h.time}</td></tr>`).join('');
